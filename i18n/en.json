@@ -1,0 +1,11 @@
+{
+	"@metadata": {
+		"authors": [
+			"lihaohong6"
+		]
+	},
+	"cwloadout-desc": "Adds loadout functionality to CreateWiki, allowing wikis to be created with pre-populated content from XML dumps and additional extensions/settings.",
+	"cwloadout-label-loadout": "Wiki loadout",
+	"cwloadout-help-loadout": "Select your preferred loadout. By default, wikis are created with only a main page, which is ideal if you want to start from scratch or import content from another wiki. Selecting another loadout will add some basic templates/extensions to your wiki.",
+	"cwloadout-label-loadout-none": "Minimal wiki (no templates, only a main page)"
+}

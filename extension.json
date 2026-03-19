@@ -1,0 +1,56 @@
+{
+	"name": "CreateWikiLoadout",
+	"version": "0.1.0",
+	"author": "Miraheze",
+	"url": "https://www.mediawiki.org/wiki/Extension:CreateWikiLoadout",
+	"descriptionmsg": "cwloadout-desc",
+	"license-name": "GPL-3.0",
+	"type": "other",
+	"requires": {
+		"MediaWiki": ">= 1.45.0",
+		"extensions": {
+			"CreateWiki": "*",
+			"ManageWiki": "*"
+		}
+	},
+	"AutoloadNamespaces": {
+		"MediaWiki\\Extension\\CreateWikiLoadout\\": "includes/"
+	},
+	"HookHandlers": {
+		"CreateWikiLoadoutHandler": {
+			"class": "MediaWiki\\Extension\\CreateWikiLoadout\\CreateWikiLoadoutHooks",
+			"services": [
+				"CreateWikiLoadout.WikiLoadoutForm",
+				"MainConfig",
+				"ManageWikiModuleFactory",
+				"CreateWikiLogger"
+			]
+		}
+	},
+	"Hooks": {
+		"CreateWikiAfterCreationWithExtraData": "CreateWikiLoadoutHandler",
+		"CreateWikiCreationExtraFields": "CreateWikiLoadoutHandler",
+		"RequestWikiFormDescriptorModify": "CreateWikiLoadoutHandler",
+		"RequestWikiQueueFormDescriptorModify": "CreateWikiLoadoutHandler"
+	},
+	"ServiceWiringFiles": [
+		"includes/ServiceWiring.php"
+	],
+	"config": {
+		"CreateWikiLoadoutEnabled": {
+			"value": false,
+			"description": "Boolean. Whether to enable the loadout selector in wiki creation forms."
+		},
+		"CreateWikiLoadoutConfigs": {
+			"value": [],
+			"description": "Array. Associative array mapping loadout names to configuration arrays. Each loadout config can have: 'xml' (path to XML dump), 'extensions' (array of extensions to enable via ManageWiki), 'settings' (array of settings for ManageWiki)."
+		}
+	},
+	"ConfigRegistry": {
+		"createwikiloadout": "MediaWiki\\Config\\GlobalVarConfig::newInstance"
+	},
+	"MessagesDirs": {
+		"CreateWikiLoadout": "i18n"
+	},
+	"manifest_version": 2
+}
