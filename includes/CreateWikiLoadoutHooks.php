@@ -10,6 +10,7 @@ use Miraheze\CreateWiki\Hooks\CreateWikiAfterCreationWithExtraDataHook;
 use Miraheze\CreateWiki\Hooks\CreateWikiCreationExtraFieldsHook;
 use Miraheze\CreateWiki\Hooks\RequestWikiFormDescriptorModifyHook;
 use Miraheze\CreateWiki\Hooks\RequestWikiQueueFormDescriptorModifyHook;
+use Miraheze\CreateWiki\RequestWiki\RequestWikiFormUtils;
 use Miraheze\ManageWiki\Helpers\Factories\ModuleFactory;
 use MediaWiki\User\User;
 use Miraheze\CreateWiki\Services\WikiRequestManager;
@@ -118,19 +119,12 @@ class CreateWikiLoadoutHooks implements
 
 	public function onRequestWikiFormDescriptorModify( array &$formDescriptor ): void {
 		if ( $this->wikiLoadoutForm->isEnabled() ) {
-			$loadoutDescriptor = $this->wikiLoadoutForm->getFormDescriptor();
-
-			// Extremely ugly hack to put the loadout after "private" instead of at the very end of the form.
-			$keys = array_keys( $formDescriptor );
-			$privateIndex = array_search( 'private', $keys, true );
-
-			if ( $privateIndex !== false ) {
-				$before = array_slice( $formDescriptor, 0, $privateIndex + 1, true );
-				$after = array_slice( $formDescriptor, $privateIndex + 1, null, true );
-				$formDescriptor = array_merge( $before, [ 'loadout' => $loadoutDescriptor ], $after );
-			} else {
-				$formDescriptor['loadout'] = $loadoutDescriptor;
-			}
+			RequestWikiFormUtils::insertFieldAfter(
+				$formDescriptor,
+				afterKey: 'category',
+				newKey: 'loadout',
+				newField: $this->wikiLoadoutForm->getFormDescriptor()
+			);
 		}
 	}
 
