@@ -23,11 +23,28 @@ $wgCreateWikiLoadoutConfigs = [
 	'default' => [
 		'xml' => '/path/to/default_dump.xml',
 		'extensions' => [ 'gadgets' ],
-		'settings' => [ ],
+		'settings' => [],
 	],
 	'fandom' => [
-		'extensions' => [ 'gadgets', 'dynamicpagelist4', 'dummyfandoommainpagetags', 'templatedata', 'loopscombo', 'variables', 'tabs', 'tabberneue', 'userprofilev2', 'visualeditor', 'linter', 'discussiontools', 'nukedpl' ],
-		'settings' => [ 'wgUseQuickInstantCommons' => false, 'wgMirahezeCommons' => false, 'wgPFEnableStringFunctions' => true, 'wgRestrictDisplayTitle' => false ],
+		'extensions' => [
+			'gadgets',
+			'dynamicpagelist4',
+			'dummyfandoommainpagetags',
+			'templatedata',
+			'tabs',
+			'tabberneue',
+			'userprofilev2',
+			'visualeditor',
+			'linter',
+			'discussiontools',
+			'nukedpl',
+		],
+		'settings' => [
+			'wgUseQuickInstantCommons' => false,
+			'wgMirahezeCommons' => false,
+			'wgPFEnableStringFunctions' => true,
+			'wgRestrictDisplayTitle' => false,
+		],
 	],
 ];
 ```
