@@ -16,6 +16,17 @@
 	"AutoloadNamespaces": {
 		"MediaWiki\\Extension\\CreateWikiLoadout\\": "includes/"
 	},
+	"JobClasses": {
+		"CreateWikiLoadoutImportXmlDump": {
+			"class": "MediaWiki\\Extension\\CreateWikiLoadout\\Jobs\\ImportXmlDumpJob",
+			"services": [
+				"ConnectionProvider",
+				"FormatterFactory",
+				"WikiImporterFactory"
+			],
+			"needsPage": false
+		}
+	},
 	"HookHandlers": {
 		"CreateWikiLoadoutHandler": {
 			"class": "MediaWiki\\Extension\\CreateWikiLoadout\\CreateWikiLoadoutHooks",
@@ -23,7 +34,8 @@
 				"CreateWikiLoadout.WikiLoadoutForm",
 				"MainConfig",
 				"ManageWikiModuleFactory",
-				"CreateWikiLogger"
+				"CreateWikiLogger",
+				"JobQueueGroupFactory"
 			]
 		}
 	},

@@ -4,7 +4,9 @@ namespace MediaWiki\Extension\CreateWikiLoadout;
 
 use Exception;
 use MediaWiki\Config\Config;
-use MediaWiki\Shell\Shell;
+use MediaWiki\Extension\CreateWikiLoadout\Jobs\ImportXmlDumpJob;
+use MediaWiki\JobQueue\JobQueueGroupFactory;
+use MediaWiki\JobQueue\JobSpecification;
 use Psr\Log\LoggerInterface;
 use Miraheze\CreateWiki\Hooks\CreateWikiAfterCreationWithExtraDataHook;
 use Miraheze\CreateWiki\Hooks\CreateWikiCreationExtraFieldsHook;
@@ -26,6 +28,7 @@ class CreateWikiLoadoutHooks implements
 		private readonly Config $config,
 		private readonly ModuleFactory $moduleFactory,
 		private readonly LoggerInterface $logger,
+		private readonly JobQueueGroupFactory $jobQueueGroupFactory,
 	) {
 	}
 
@@ -72,49 +75,21 @@ class CreateWikiLoadoutHooks implements
 				"XML dump file {path} not found or not readable",
 				[
 					'path' => $xmlPath,
-					'dbname' => $dbname
+					'dbname' => $dbname,
 				]
 			);
 			return;
 		}
 
-		try {
-			$limits = [
-				'memory' => 0,
-				'filesize' => 0,
-				'time' => 0,
-				'walltime' => 0
-			];
-			$result = Shell::makeScriptCommand(
-				'importDump',
+		$this->jobQueueGroupFactory->makeJobQueueGroup( $dbname )->push(
+			new JobSpecification(
+				ImportXmlDumpJob::JOB_NAME,
 				[
-					'--wiki',
-					$dbname,
-					$xmlPath,
-					'--username-prefix',
-					'',
-				]
-			)->limits( $limits )->execute();
-
-			if ( $result->getExitCode() !== 0 ) {
-				$stderr = $result->getStderr();
-				$this->logger->error(
-					"ImportDump failed for wiki {dbname}: {error}",
-					[
-						'dbname' => $dbname,
-						'error' => $stderr
-					]
-				);
-			}
-		} catch ( Exception $e ) {
-			$this->logger->error(
-				"Exception during importDump for wiki {dbname}: {exception}",
-				[
+					'xmlPath' => $xmlPath,
 					'dbname' => $dbname,
-					'exception' => $e->getMessage()
 				]
-			);
-		}
+			)
+		);
 	}
 
 	public function onRequestWikiFormDescriptorModify( array &$formDescriptor ): void {
@@ -183,4 +158,5 @@ class CreateWikiLoadoutHooks implements
 			);
 		}
 	}
+
 }
