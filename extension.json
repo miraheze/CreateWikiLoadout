@@ -23,7 +23,9 @@
 				"CreateWikiLoadout.WikiLoadoutForm",
 				"MainConfig",
 				"ManageWikiModuleFactory",
-				"CreateWikiLogger"
+				"CreateWikiLogger",
+				"WikiImporterFactory",
+				"ConnectionProvider"
 			]
 		}
 	},

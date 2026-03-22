@@ -3,9 +3,16 @@
 namespace MediaWiki\Extension\CreateWikiLoadout;
 
 use Exception;
+use ImportStreamSource;
 use MediaWiki\Config\Config;
-use MediaWiki\Shell\Shell;
+use MediaWiki\Deferred\SiteStatsUpdate;
+use MediaWiki\Exception\MWExceptionHandler;
+use MediaWiki\Maintenance\FakeMaintenance;
+use MediaWiki\Permissions\UltimateAuthority;
+use MediaWiki\SiteStats\SiteStatsInit;
 use Psr\Log\LoggerInterface;
+use RebuildTextIndex;
+use RefreshLinks;
 use Miraheze\CreateWiki\Hooks\CreateWikiAfterCreationWithExtraDataHook;
 use Miraheze\CreateWiki\Hooks\CreateWikiCreationExtraFieldsHook;
 use Miraheze\CreateWiki\Hooks\RequestWikiFormDescriptorModifyHook;
@@ -14,6 +21,9 @@ use Miraheze\CreateWiki\RequestWiki\RequestWikiFormUtils;
 use Miraheze\ManageWiki\Helpers\Factories\ModuleFactory;
 use MediaWiki\User\User;
 use Miraheze\CreateWiki\Services\WikiRequestManager;
+use Throwable;
+use WikiImporterFactory;
+use Wikimedia\Rdbms\IConnectionProvider;
 
 class CreateWikiLoadoutHooks implements
 	CreateWikiAfterCreationWithExtraDataHook,
@@ -26,6 +36,8 @@ class CreateWikiLoadoutHooks implements
 		private readonly Config $config,
 		private readonly ModuleFactory $moduleFactory,
 		private readonly LoggerInterface $logger,
+		private readonly WikiImporterFactory $wikiImporterFactory,
+		private readonly IConnectionProvider $connectionProvider,
 	) {
 	}
 
@@ -72,49 +84,13 @@ class CreateWikiLoadoutHooks implements
 				"XML dump file {path} not found or not readable",
 				[
 					'path' => $xmlPath,
-					'dbname' => $dbname
+					'dbname' => $dbname,
 				]
 			);
 			return;
 		}
 
-		try {
-			$limits = [
-				'memory' => 0,
-				'filesize' => 0,
-				'time' => 0,
-				'walltime' => 0
-			];
-			$result = Shell::makeScriptCommand(
-				'importDump',
-				[
-					'--wiki',
-					$dbname,
-					$xmlPath,
-					'--username-prefix',
-					'',
-				]
-			)->limits( $limits )->execute();
-
-			if ( $result->getExitCode() !== 0 ) {
-				$stderr = $result->getStderr();
-				$this->logger->error(
-					"ImportDump failed for wiki {dbname}: {error}",
-					[
-						'dbname' => $dbname,
-						'error' => $stderr
-					]
-				);
-			}
-		} catch ( Exception $e ) {
-			$this->logger->error(
-				"Exception during importDump for wiki {dbname}: {exception}",
-				[
-					'dbname' => $dbname,
-					'exception' => $e->getMessage()
-				]
-			);
-		}
+		$this->performImport( $xmlPath, $dbname );
 	}
 
 	public function onRequestWikiFormDescriptorModify( array &$formDescriptor ): void {
@@ -179,6 +155,59 @@ class CreateWikiLoadoutHooks implements
 				[
 					'settings' => $settings,
 					'exception' => $e->getMessage()
+				]
+			);
+		}
+	}
+
+	public function performImport( string $xmlPath, string $dbname ): void {
+		$importStreamSource = ImportStreamSource::newFromFile( $xmlPath );
+		if ( !$importStreamSource->isGood() ) {
+			$this->logger->error(
+				"Failed to open XML dump file {path} for wiki {dbname}: {error}",
+				[
+					'path' => $xmlPath,
+					'dbname' => $dbname,
+					'error' => $importStreamSource->getMessages(),
+				]
+			);
+			return;
+		}
+
+		$dbw = $this->connectionProvider->getPrimaryDatabase();
+
+		try {
+			$user = User::newSystemUser( 'Maintenance script', [ 'steal' => true ] );
+			$importer = $this->wikiImporterFactory->getWikiImporter(
+				$importStreamSource->value,
+				new UltimateAuthority( $user )
+			);
+
+			$importer->disableStatisticsUpdate();
+			$importer->setNoUpdates( true );
+			// assignKnownUsers is always useless because there will only be a single user
+			$importer->setUsernamePrefix( '', true );
+
+			$importer->doImport();
+
+			$siteStatsInit = new SiteStatsInit();
+			$siteStatsInit->refresh();
+
+			SiteStatsUpdate::cacheUpdate( $dbw );
+
+			$maintenance = new FakeMaintenance;
+			$rebuildText = $maintenance->createChild( RebuildTextIndex::class );
+			$rebuildText->execute();
+
+			$rebuildLinks = $maintenance->createChild( RefreshLinks::class );
+			$rebuildLinks->execute();
+		} catch ( Throwable $t ) {
+			MWExceptionHandler::rollbackPrimaryChangesAndLog( $t );
+			$this->logger->error(
+				"Exception during XML import for wiki {dbname}: {exception}",
+				[
+					'dbname' => $dbname,
+					'exception' => $t->getMessage(),
 				]
 			);
 		}
