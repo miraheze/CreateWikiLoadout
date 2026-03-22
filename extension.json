@@ -14,7 +14,8 @@
 		}
 	},
 	"AutoloadNamespaces": {
-		"MediaWiki\\Extension\\CreateWikiLoadout\\": "includes/"
+		"MediaWiki\\Extension\\CreateWikiLoadout\\": "includes/",
+		"MediaWiki\\Extension\\CreateWikiLoadout\\Maintenance\\": "maintenance/"
 	},
 	"HookHandlers": {
 		"CreateWikiLoadoutHandler": {
@@ -23,9 +24,7 @@
 				"CreateWikiLoadout.WikiLoadoutForm",
 				"MainConfig",
 				"ManageWikiModuleFactory",
-				"CreateWikiLogger",
-				"WikiImporterFactory",
-				"ConnectionProvider"
+				"CreateWikiLogger"
 			]
 		}
 	},
