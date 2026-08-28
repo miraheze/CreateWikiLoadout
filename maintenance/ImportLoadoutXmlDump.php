@@ -2,14 +2,15 @@
 
 namespace MediaWiki\Extension\CreateWikiLoadout\Maintenance;
 
-use ImportStreamSource;
-use MediaWiki\Context\RequestContext;
+use Exception;
 use MediaWiki\Deferred\SiteStatsUpdate;
 use MediaWiki\Exception\MWExceptionHandler;
 use MediaWiki\Logger\LoggerFactory;
+use MediaWiki\MainConfigNames;
 use MediaWiki\Maintenance\FakeMaintenance;
 use MediaWiki\Maintenance\Maintenance;
 use MediaWiki\Permissions\UltimateAuthority;
+use MediaWiki\Shell\Shell;
 use MediaWiki\SiteStats\SiteStatsInit;
 use MediaWiki\Title\Title;
 use MediaWiki\User\User;
@@ -37,16 +38,9 @@ class ImportLoadoutXmlDump extends Maintenance {
 		$this->logger->info( 'CreateWikiLoadout import started.' );
 
 		$xmlPath = $this->getOption( 'xml' );
-		$services = $this->getServiceContainer();
 
-		// @phan-suppress-next-line SecurityCheck-PathTraversal False positive, path comes from config
-		$importStreamSource = ImportStreamSource::newFromFile( $xmlPath );
-		if ( !$importStreamSource->isGood() ) {
-			$formatter = $services->getFormatterFactory()->getStatusFormatter( RequestContext::getMain() );
-			$this->fatalError(
-				"Failed to open XML dump file $xmlPath: " .
-				$formatter->getWikiText( $importStreamSource, [ 'lang' => 'en' ] )
-			);
+		if ( !file_exists( $xmlPath ) || !is_readable( $xmlPath ) ) {
+			$this->fatalError( "XML dump file $xmlPath not found or not readable." );
 		}
 
 		$dbw = $this->getPrimaryDB();
@@ -56,17 +50,25 @@ class ImportLoadoutXmlDump extends Maintenance {
 			$this->deleteDefaultMainPage( $user );
 			$this->logger->info( 'CreateWikiLoadout deleted the old main page.' );
 
-			$importer = $services->getWikiImporterFactory()->getWikiImporter(
-				$importStreamSource->value,
-				new UltimateAuthority( $user )
-			);
+			$result = Shell::makeScriptCommand(
+				'importDump.php',
+				[
+					'--no-updates',
+					'--no-local-users',
+					'--wiki', $this->getConfig()->get( MainConfigNames::DBname ),
+					$xmlPath,
+				]
+			)->limits( [
+				'memory' => 0,
+				'filesize' => 0,
+				'time' => 0,
+				'walltime' => 0,
+			] )->execute();
 
-			$importer->disableStatisticsUpdate();
-			$importer->setNoUpdates( true );
-			// assignKnownUsers is always useless because there will only be a single user in the XML dump
-			// $importer->setUsernamePrefix( '', true );
+			if ( $result->getExitCode() !== 0 ) {
+				$this->fatalError( 'CreateWikiLoadout failed to import the dump file: ' . $result->getStderr() );
+			}
 
-			$importer->doImport();
 			$this->logger->info( 'CreateWikiLoadout finished importing the XML dump.' );
 
 			$siteStatsInit = new SiteStatsInit();
