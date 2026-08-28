@@ -4,9 +4,8 @@ namespace MediaWiki\Extension\CreateWikiLoadout;
 
 use Exception;
 use MediaWiki\Config\Config;
-use MediaWiki\Extension\CreateWikiLoadout\Jobs\ImportXmlDumpJob;
-use MediaWiki\JobQueue\JobQueueGroupFactory;
-use MediaWiki\JobQueue\JobSpecification;
+use MediaWiki\Extension\CreateWikiLoadout\Maintenance\ImportLoadoutXmlDump;
+use MediaWiki\Shell\Shell;
 use Psr\Log\LoggerInterface;
 use Miraheze\CreateWiki\Hooks\CreateWikiAfterCreationWithExtraDataHook;
 use Miraheze\CreateWiki\Hooks\CreateWikiCreationExtraFieldsHook;
@@ -28,7 +27,6 @@ class CreateWikiLoadoutHooks implements
 		private readonly Config $config,
 		private readonly ModuleFactory $moduleFactory,
 		private readonly LoggerInterface $logger,
-		private readonly JobQueueGroupFactory $jobQueueGroupFactory,
 	) {
 	}
 
@@ -81,15 +79,30 @@ class CreateWikiLoadoutHooks implements
 			return;
 		}
 
-		$this->jobQueueGroupFactory->makeJobQueueGroup( $dbname )->push(
-			new JobSpecification(
-				ImportXmlDumpJob::JOB_NAME,
+		// Import needs to be done in a separate process because the dblist in the current process
+		// does not contain the new wiki.
+		$result = Shell::makeScriptCommand(
+			ImportLoadoutXmlDump::class,
+			[
+				'--wiki', $dbname,
+				'--xml', $xmlPath,
+			]
+		)->limits( [
+			'memory' => 0,
+			'filesize' => 0,
+			'time' => 0,
+			'walltime' => 0,
+		] )->execute();
+
+		if ( $result->getExitCode() !== 0 ) {
+			$this->logger->error(
+				'Failed to import the XML dump for wiki {dbname}: {error}',
 				[
-					'xmlPath' => $xmlPath,
 					'dbname' => $dbname,
+					'error' => $result->getStderr(),
 				]
-			)
-		);
+			);
+		}
 	}
 
 	public function onRequestWikiFormDescriptorModify( array &$formDescriptor ): void {
