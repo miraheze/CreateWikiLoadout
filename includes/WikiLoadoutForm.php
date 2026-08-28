@@ -4,6 +4,7 @@ namespace MediaWiki\Extension\CreateWikiLoadout;
 
 use MediaWiki\Config\Config;
 use MediaWiki\Config\ServiceOptions;
+use MediaWiki\Html\Html;
 
 class WikiLoadoutForm {
 
@@ -32,7 +33,7 @@ class WikiLoadoutForm {
 		return [
 			'type' => 'select',
 			'label-message' => 'cwloadout-label-loadout',
-			'help-message' => 'cwloadout-help-loadout',
+			'help-raw' => $this->buildHelpText(),
 			'options' => $this->loadoutOptions,
 			'default' => '',
 		];
@@ -47,5 +48,22 @@ class WikiLoadoutForm {
 			$options[ wfMessage( "cwloadout-label-loadout-$loadoutKey" )->inContentLanguage()->text() ] = $loadoutKey;
 		}
 		return $options;
+	}
+
+	private function buildHelpText(): string {
+		$items = '';
+		foreach ( $this->loadoutOptions as $label => $loadoutKey ) {
+			$messageKey = 'cwloadout-help-loadout-' . ( $loadoutKey === '' ? 'none' : $loadoutKey );
+			$description = wfMessage( $messageKey )->inContentLanguage();
+			// Format: "label: description"
+			$content = [
+				Html::element( 'strong', [], (string)$label ),
+				wfMessage( 'colon-separator' )->inContentLanguage()->escaped(),
+				$description->parse(),
+			];
+			$items .= Html::rawElement( 'li', [], implode( "", $content ) );
+		}
+		$intro = wfMessage( 'cwloadout-help-loadout' )->inContentLanguage()->parse();
+		return $intro . Html::rawElement( 'ul', [ 'class' => 'cwloadout-help-loadout-list' ], $items );
 	}
 }

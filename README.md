@@ -51,8 +51,15 @@ $wgCreateWikiLoadoutConfigs = [
 
 Default: `[]`
 
+## Messages
+
+Each loadout is labeled and described through interface messages, keyed by its loadout name:
+
+- `cwloadout-label-loadout-<name>`: the label shown in the selector.
+- `cwloadout-help-loadout-<name>`: a description of what the loadout does.
+
+For the built-in empty option, `<name>` is `none`.
+
 ## TODO
 
 Make an extra field on Special:CreateWiki as well, which requires an extra hook in CreateWiki.
-
-Disable main page creation when a non-default loadout is chosen.
