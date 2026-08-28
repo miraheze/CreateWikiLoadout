@@ -9,14 +9,19 @@ use MediaWiki\Exception\MWExceptionHandler;
 use MediaWiki\JobQueue\Job;
 use MediaWiki\Language\FormatterFactory;
 use MediaWiki\Maintenance\FakeMaintenance;
+use MediaWiki\Page\DeletePageFactory;
+use MediaWiki\Page\WikiPageFactory;
 use MediaWiki\Permissions\UltimateAuthority;
 use MediaWiki\SiteStats\SiteStatsInit;
+use MediaWiki\Title\Title;
 use MediaWiki\User\User;
+use Psr\Log\LoggerInterface;
 use RebuildTextIndex;
 use RefreshLinks;
 use Throwable;
 use WikiImporterFactory;
 use Wikimedia\Rdbms\IConnectionProvider;
+use Wikimedia\Rdbms\IDBAccessObject;
 
 class ImportXmlDumpJob extends Job {
 
@@ -27,6 +32,9 @@ class ImportXmlDumpJob extends Job {
 		private readonly IConnectionProvider $connectionProvider,
 		private readonly FormatterFactory $formatterFactory,
 		private readonly WikiImporterFactory $wikiImporterFactory,
+		private readonly WikiPageFactory $wikiPageFactory,
+		private readonly DeletePageFactory $deletePageFactory,
+		private readonly LoggerInterface $logger,
 	) {
 		parent::__construct( self::JOB_NAME, $params );
 	}
@@ -48,6 +56,7 @@ class ImportXmlDumpJob extends Job {
 
 		try {
 			$user = User::newSystemUser( 'Maintenance script', [ 'steal' => true ] );
+			$this->deleteDefaultMainPage( $user );
 			$importer = $this->wikiImporterFactory->getWikiImporter(
 				$importStreamSource->value,
 				new UltimateAuthority( $user )
@@ -78,5 +87,19 @@ class ImportXmlDumpJob extends Job {
 		}
 
 		return true;
+	}
+
+	private function deleteDefaultMainPage( User $user ): void {
+		$page = $this->wikiPageFactory->newFromTitle( Title::newMainPage() );
+		$page->loadPageData( IDBAccessObject::READ_LATEST );
+		if ( !$page->exists() ) {
+			$this->logger->warning( 'CreateWikiLoadout expected a default main page to exist but there was none.' );
+			return;
+		}
+
+		$this->deletePageFactory->newDeletePage( $page, new UltimateAuthority( $user ) )
+			->forceImmediate( true )
+			->deleteUnsafe( 'Delete default main page to make way for CreateWikiLoadout import.' );
+		$this->logger->info( 'Default main page deleted by CreateWikiLoadout.' );
 	}
 }

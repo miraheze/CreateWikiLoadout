@@ -22,7 +22,10 @@
 			"services": [
 				"ConnectionProvider",
 				"FormatterFactory",
-				"WikiImporterFactory"
+				"WikiImporterFactory",
+				"WikiPageFactory",
+				"DeletePageFactory",
+				"LoggerInterface"
 			],
 			"needsPage": false
 		}
